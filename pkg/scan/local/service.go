@@ -210,8 +210,12 @@ func (s Service) scanVulnerabilities(ctx context.Context, target types.ScanTarge
 	var eosl bool
 	var results types.Results
 
-	if slices.Contains(options.PkgTypes, types.PkgTypeOS) {
-		vuln, detectedEOSL, err := s.osPkgScanner.Scan(ctx, target, options)
+	if scanOS := slices.Contains(options.PkgTypes, types.PkgTypeOS); scanOS || options.ListAllPkgs {
+		opts := options
+		if !scanOS {
+			opts = packagesOnlyOptions(options)
+		}
+		vuln, detectedEOSL, err := s.osPkgScanner.Scan(ctx, target, opts)
 		switch {
 		case errors.Is(err, ospkgDetector.ErrUnsupportedOS):
 		// do nothing
@@ -223,8 +227,12 @@ func (s Service) scanVulnerabilities(ctx context.Context, target types.ScanTarge
 		}
 	}
 
-	if slices.Contains(options.PkgTypes, types.PkgTypeLibrary) {
-		vulns, err := s.langPkgScanner.Scan(ctx, target, options)
+	if scanLibrary := slices.Contains(options.PkgTypes, types.PkgTypeLibrary); scanLibrary || options.ListAllPkgs {
+		opts := options
+		if !scanLibrary {
+			opts = packagesOnlyOptions(options)
+		}
+		vulns, err := s.langPkgScanner.Scan(ctx, target, opts)
 		if err != nil {
 			return nil, false, xerrors.Errorf("failed to scan application libraries: %w", err)
 		}
@@ -232,6 +240,15 @@ func (s Service) scanVulnerabilities(ctx context.Context, target types.ScanTarge
 	}
 
 	return results, eosl, nil
+}
+
+// packagesOnlyOptions returns scan options with the vulnerability scanner disabled,
+// so that package scanners only return detected packages without vulnerability detection.
+func packagesOnlyOptions(options types.ScanOptions) types.ScanOptions {
+	options.Scanners = lo.Filter(options.Scanners, func(s types.Scanner, _ int) bool {
+		return s != types.VulnerabilityScanner
+	})
+	return options
 }
 
 func (s Service) misconfsToResults(misconfs []ftypes.Misconfiguration, options types.ScanOptions) types.Results {

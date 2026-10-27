@@ -105,6 +105,7 @@ func (s *ScanServer) ToOptions(in *rpcScanner.ScanOptions) types.ScanOptions {
 		PkgRelationships:    pkgRelationships,
 		Scanners:            scanners,
 		IncludeDevDeps:      in.IncludeDevDeps,
+		ListAllPkgs:         in.ListAllPkgs,
 		LicenseCategories:   licenseCategories,
 		LicenseFull:         in.LicenseFull,
 		CryptoChecks:        in.CryptoChecks,

@@ -304,6 +304,97 @@ func TestScanner_Scan(t *testing.T) {
 			},
 		},
 		{
+			name: "package listing for unselected package types with --list-all-pkgs",
+			args: args{
+				target:   "alpine:latest",
+				layerIDs: []string{"sha256:5216338b40a7b96416b8b9858974bbe4acc3096ee60acbc4dfb1ee02aecceb10"},
+				options: types.ScanOptions{
+					PkgTypes:            []string{types.PkgTypeLibrary},
+					PkgRelationships:    ftypes.Relationships,
+					Scanners:            types.Scanners{types.VulnerabilityScanner},
+					ListAllPkgs:         true,
+					VulnSeveritySources: []dbTypes.SourceID{"auto"},
+				},
+			},
+			fixtures: []string{"testdata/fixtures/happy.yaml"},
+			setupCache: func(t *testing.T) cache.Cache {
+				c := cache.NewMemoryCache()
+				require.NoError(t, c.PutBlob(t.Context(), "sha256:5216338b40a7b96416b8b9858974bbe4acc3096ee60acbc4dfb1ee02aecceb10", ftypes.BlobInfo{
+					SchemaVersion: ftypes.BlobJSONSchemaVersion,
+					Size:          1000,
+					DiffID:        "sha256:5216338b40a7b96416b8b9858974bbe4acc3096ee60acbc4dfb1ee02aecceb10",
+					OS: ftypes.OS{
+						Family: ftypes.Alpine,
+						Name:   "3.11",
+					},
+					PackageInfos: []ftypes.PackageInfo{
+						{
+							FilePath: "lib/apk/db/installed",
+							Packages: []ftypes.Package{muslPkg},
+						},
+					},
+					Applications: []ftypes.Application{
+						{
+							Type:     ftypes.Bundler,
+							FilePath: "/app/Gemfile.lock",
+							Packages: []ftypes.Package{railsPkg},
+						},
+					},
+				}))
+				return c
+			},
+			want: types.ScanResponse{
+				Results: types.Results{
+					{
+						Target:   "alpine:latest (alpine 3.11)",
+						Class:    types.ClassOSPkg,
+						Type:     ftypes.Alpine,
+						Packages: ftypes.Packages{muslPkg},
+					},
+					{
+						Target:   "/app/Gemfile.lock",
+						Class:    types.ClassLangPkg,
+						Type:     ftypes.Bundler,
+						Packages: ftypes.Packages{railsPkg},
+						Vulnerabilities: []types.DetectedVulnerability{
+							{
+								VulnerabilityID:  "CVE-2014-0081",
+								PkgName:          railsPkg.Name,
+								PkgIdentifier:    railsPkg.Identifier,
+								InstalledVersion: railsPkg.Version,
+								FixedVersion:     "4.0.3, 3.2.17",
+								Status:           dbTypes.StatusFixed,
+								Layer: ftypes.Layer{
+									DiffID: "sha256:0ea33a93585cf1917ba522b2304634c3073654062d5282c1346322967790ef33",
+								},
+								PrimaryURL: "https://avd.aquasec.com/nvd/cve-2014-0081",
+								Vulnerability: dbTypes.Vulnerability{
+									Title:       "xss",
+									Description: "xss vulnerability",
+									Severity:    "MEDIUM",
+									References: []string{
+										"http://example.com",
+									},
+									LastModifiedDate: new(time.Date(2020, 2, 1, 1, 1, 0, 0, time.UTC)),
+									PublishedDate:    new(time.Date(2020, 1, 1, 1, 1, 0, 0, time.UTC)),
+								},
+							},
+						},
+					},
+				},
+				OS: ftypes.OS{
+					Family: "alpine",
+					Name:   "3.11",
+				},
+				Layers: ftypes.Layers{
+					{
+						Size:   1000,
+						DiffID: "sha256:5216338b40a7b96416b8b9858974bbe4acc3096ee60acbc4dfb1ee02aecceb10",
+					},
+				},
+			},
+		},
+		{
 			name: "happy path with OS rewriting",
 			args: args{
 				target:   "alpine:latest",

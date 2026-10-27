@@ -117,6 +117,7 @@ type ScanOptions struct {
 	PkgRelationships    []types.Relationship
 	Scanners            Scanners
 	ImageConfigScanners Scanners // Scanners for container image configuration
+	ListAllPkgs         bool     // Include detected packages in results, even for package types not selected for scanning
 	ScanRemovedPackages bool
 	LicenseCategories   map[types.LicenseCategory][]string
 	LicenseFull         bool
